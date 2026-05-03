@@ -23,3 +23,36 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 
 	return nil
 }
+
+func DeclareAndBind(
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType, // is an enum type to represent durable or transient
+) (*amqp.Channel, amqp.Queue, error) {
+	var q amqp.Queue
+	// create a new channel on the connection
+	ch, err := conn.Channel()
+	if err != nil {
+		return ch, q, err
+	}
+
+	// declare a new queue
+	if queueType == SimpleQueueDurable {
+		q, err = ch.QueueDeclare(queueName, true, false, false, false, nil)
+	} else if queueType == SimpleQueueTransient {
+		q, err = ch.QueueDeclare(queueName, false, true, true, false, nil)
+	}
+	if err != nil {
+		return ch, q, err
+	}
+
+	// bind the queue to the exchange
+	err = ch.QueueBind(queueName, key, exchange, false, nil)
+	if err != nil {
+		return ch, q, err
+	}
+
+	return ch, q, nil
+}

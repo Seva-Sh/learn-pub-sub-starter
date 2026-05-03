@@ -32,6 +32,7 @@ func main() {
 		return
 	}
 
+	// publish a message to the exchange
 	err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: true})
 	if err != nil {
 		log.Println("Error:", err)
