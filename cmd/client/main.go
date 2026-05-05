@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -23,7 +21,7 @@ func main() {
 		return
 	}
 	defer c.Close()
-	fmt.Println("Conenction successful")
+	fmt.Println("Connection successful")
 
 	// prompt the user for a user name
 	username, err := gamelogic.ClientWelcome()
@@ -32,7 +30,7 @@ func main() {
 		return
 	}
 
-	// declare and bind the queue
+	// declare and bind the pause queue
 	_, _, err = pubsub.DeclareAndBind(
 		c,
 		routing.ExchangePerilDirect,
@@ -45,9 +43,44 @@ func main() {
 		return
 	}
 
-	// listen for a signal
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	// wait until signal received
-	<-signalChan
+	gameState := gamelogic.NewGameState(username)
+
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+
+		switch words[0] {
+		case "spawn":
+			err = gameState.CommandSpawn(words)
+			if err != nil {
+				log.Println("Error:", err)
+				continue
+			}
+		case "move":
+			_, err := gameState.CommandMove(words)
+			if err != nil {
+				log.Println("Error:", err)
+				continue
+			}
+		case "status":
+			gameState.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+		default:
+			fmt.Println("Unknown command")
+		}
+	}
+
+	// // listen for a signal
+	// signalChan := make(chan os.Signal, 1)
+	// signal.Notify(signalChan, os.Interrupt)
+	// // wait until signal received
+	// <-signalChan
 }
