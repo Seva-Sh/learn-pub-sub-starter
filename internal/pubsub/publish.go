@@ -24,6 +24,46 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	return nil
 }
 
+func SubscribeJSON[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType,
+	handler func(T),
+) error {
+	// make sure the given queue exists and is bound to the exchange
+	ch, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if err != nil {
+		return err
+	}
+	// get a new chan
+	newChan, err := ch.Consume(queueName, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+	// start a goroutine that ranges over the channel of deliveries and act on each message
+	go func() {
+		for message := range newChan {
+			// unmarshal the bode of each message delivery
+			var v T
+			innerErr := json.Unmarshal(message.Body, &v)
+			if innerErr != nil {
+				continue
+			}
+			// call the given handler func
+			handler(v)
+			// acknowledge the message to remove it from the queue
+			innerErr = message.Ack(false)
+			if innerErr != nil {
+				continue
+			}
+		}
+	}()
+
+	return nil
+}
+
 func DeclareAndBind(
 	conn *amqp.Connection,
 	exchange,

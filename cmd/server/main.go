@@ -31,6 +31,19 @@ func main() {
 		return
 	}
 
+	// declare and bind topic queue
+	_, _, err = pubsub.DeclareAndBind(
+		c,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug+".*",
+		pubsub.SimpleQueueDurable,
+	)
+	if err != nil {
+		log.Println("Error:", err)
+		return
+	}
+
 	gamelogic.PrintServerHelp()
 	for {
 		words := gamelogic.GetInput()
