@@ -73,13 +73,28 @@ func main() {
 		fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, username),
 		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
 		pubsub.SimpleQueueTransient,
-		handlerMove(gameState),
+		handlerMove(gameState, ch),
 	)
 	if err != nil {
 		log.Println("Error:", err)
 		return
 	}
 
+	// subscribe to war actions
+	err = pubsub.SubscribeJSON(
+		c,
+		routing.ExchangePerilTopic,
+		routing.WarRecognitionsPrefix,
+		fmt.Sprintf("%s.*", routing.WarRecognitionsPrefix),
+		pubsub.SimpleQueueDurable,
+		handlerWar(gameState),
+	)
+	if err != nil {
+		log.Println("Error:", err)
+		return
+	}
+
+	// goroutine for client actions
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
