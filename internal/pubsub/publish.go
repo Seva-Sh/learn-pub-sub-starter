@@ -3,7 +3,9 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -30,7 +32,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType,
-	handler func(T),
+	handler func(T) Acktype,
 ) error {
 	// make sure the given queue exists and is bound to the exchange
 	ch, _, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
@@ -52,12 +54,23 @@ func SubscribeJSON[T any](
 				continue
 			}
 			// call the given handler func
-			handler(v)
-			// acknowledge the message to remove it from the queue
-			innerErr = message.Ack(false)
+			acktype := handler(v)
+			// acknowledge the message
+			switch acktype {
+			case Ack:
+				innerErr = message.Ack(false)
+				fmt.Println("Ack")
+			case NackRequeue:
+				innerErr = message.Nack(false, true)
+				fmt.Println("NackRequeue")
+			case NackDiscard:
+				innerErr = message.Nack(false, false)
+				fmt.Println("NackDiscard")
+			}
 			if innerErr != nil {
 				continue
 			}
+
 		}
 	}()
 
@@ -79,10 +92,11 @@ func DeclareAndBind(
 	}
 
 	// declare a new queue
-	if queueType == SimpleQueueDurable {
-		q, err = ch.QueueDeclare(queueName, true, false, false, false, nil)
-	} else if queueType == SimpleQueueTransient {
-		q, err = ch.QueueDeclare(queueName, false, true, true, false, nil)
+	switch queueType {
+	case SimpleQueueDurable:
+		q, err = ch.QueueDeclare(queueName, true, false, false, false, amqp.Table{"x-dead-letter-exchange": routing.ExchangePerilDLX})
+	case SimpleQueueTransient:
+		q, err = ch.QueueDeclare(queueName, false, true, true, false, amqp.Table{"x-dead-letter-exchange": routing.ExchangePerilDLX})
 	}
 	if err != nil {
 		return ch, q, err

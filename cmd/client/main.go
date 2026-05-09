@@ -10,20 +10,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
-	return func(ps routing.PlayingState) {
-		defer fmt.Print("> ")
-		gs.HandlePause(ps)
-	}
-}
-
-func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
-	return func(move gamelogic.ArmyMove) {
-		defer fmt.Print("> ")
-		gs.HandleMove(move)
-	}
-}
-
 func main() {
 	fmt.Println("Starting Peril client...")
 
